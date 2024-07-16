@@ -33,7 +33,7 @@ services:
 
   # Graylog: https://hub.docker.com/r/graylog/graylog/
   graylog:
-    hostname: "server"
+    hostname: server
     image: graylog/graylog:6.0.4
     depends_on:
       mongodb:
@@ -74,7 +74,22 @@ services:
       - graylog_data:/usr/share/graylog/data/data
       - graylog_journal:/usr/share/graylog/data/journal
     restart: on-failure
-
+  
+  talker:
+    build:
+      context: ./talker/
+      dockerfile: Dockerfile
+    ports:
+      - 9993:3000
+    depends_on:
+      - graylog
+    networks:
+      - graylog
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: always
 networks:
   graylog:
     driver: bridge
