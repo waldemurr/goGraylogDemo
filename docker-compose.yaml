@@ -42,17 +42,18 @@ services:
         condition: "service_started"
     entrypoint: "/usr/bin/tini -- wait-for-it elasticsearch:9200 -- /docker-entrypoint.sh"
     environment:
-      - GRAYLOG_NODE_ID_FILE=/usr/share/graylog/data/config/node-id
-      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
-      - GRAYLOG_ELASTICSEARCH_HOSTS=http://opensearch:9200
-      - GRAYLOG_MONGODB_URI=mongodb://mongodb:27017/graylog
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      # - MONGODB_URI=mongodb://127.0.0.1/graylog
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
       # To make reporting (headless_shell) work inside a Docker container
-      - GRAYLOG_REPORT_DISABLE_SANDBOX=true
+      GRAYLOG_REPORT_DISABLE_SANDBOX: true
       # CHANGE ME (must be at least 16 characters)!
-      - GRAYLOG_PASSWORD_SECRET=somepasswordpepper
+      GRAYLOG_PASSWORD_SECRET: somepasswordpepper
       # Password: "admin"
-      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
-      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
+      GRAYLOG_ROOT_PASSWORD_SHA2: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      GRAYLOG_HTTP_EXTERNAL_URI: http://127.0.0.1:9000/
     ports:
       # Graylog web interface and REST API
       - "9000:9000/tcp"
@@ -68,8 +69,8 @@ services:
       - "12201:12201/udp"
       # Forwarder data
       - "13301:13301/tcp"
-      # Forwarder config
-      - "13302:13302/tcp"
+
+      - "13302:13302/tcp"       # Forwarder config
     volumes:
       - graylog_data:/usr/share/graylog/data/data
       - graylog_journal:/usr/share/graylog/data/journal
@@ -79,6 +80,9 @@ services:
     build:
       context: ./talker/
       dockerfile: Dockerfile
+    environment:
+      GRAYLOG_HOST: "http://127.0.0.1"
+      GRAYLOG_PORT: "5140" 
     ports:
       - 9993:3000
     depends_on:
@@ -90,6 +94,7 @@ services:
         max-size: "10m"
         max-file: "3"
     restart: always
+  
 networks:
   graylog:
     driver: bridge

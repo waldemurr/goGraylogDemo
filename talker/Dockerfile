@@ -23,7 +23,6 @@ ENV TZ Asia/Shanghai
 
 WORKDIR /app
 
-# ADD History.csv .
 COPY --from=builder /app/talker /app/talker
 
-CMD ["./historysync"]
+CMD ["./talker"]
