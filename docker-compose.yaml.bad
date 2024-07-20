@@ -1,0 +1,108 @@
+services:
+  # MongoDB: https://hub.docker.com/_/mongo/
+  mongodb:
+    image: mongo:6.0.14
+    volumes:
+      - "mongodb_data:/data/db"
+    restart: on-failure
+    networks:
+      - graylog
+    ports:
+      # Graylog web interface and REST API
+      - "27017:27017"
+
+  opensearch:
+    image: opensearchproject/opensearch:2.12.0
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "bootstrap.memory_lock=true"
+      - "discovery.type=single-node"
+      - "action.auto_create_index=false"
+      - "plugins.security.ssl.http.enabled=false"
+      - "plugins.security.disabled=true"
+      # Can generate a password for `OPENSEARCH_INITIAL_ADMIN_PASSWORD` using a linux device via:
+      # tr -dc A-Z-a-z-0-9_@#%^-_=+ < /dev/urandom | head -c${1:-32}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=+_8r#wliY3Pv5-HMIf4qzXImYzZf-M=M
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: on-failure
+    networks:
+      - graylog
+
+  # Graylog: https://hub.docker.com/r/graylog/graylog/
+  graylog:
+    hostname: server
+    image: graylog/graylog:6.0.4
+    depends_on:
+      mongodb:
+        condition: "service_started"
+      opensearch:
+        condition: "service_started"
+    entrypoint: "/usr/bin/tini -- wait-for-it elasticsearch:9200 -- /docker-entrypoint.sh"
+    environment:
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      # - MONGODB_URI=mongodb://127.0.0.1/graylog
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
+      # To make reporting (headless_shell) work inside a Docker container
+      GRAYLOG_REPORT_DISABLE_SANDBOX: true
+      # CHANGE ME (must be at least 16 characters)!
+      GRAYLOG_PASSWORD_SECRET: somepasswordpepper
+      # Password: "admin"
+      GRAYLOG_ROOT_PASSWORD_SHA2: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      GRAYLOG_HTTP_EXTERNAL_URI: http://127.0.0.1:9000/
+    ports:
+      # Graylog web interface and REST API
+      - "9000:9000/tcp"
+      # Beats
+      - "5044:5044/tcp"
+      # Syslog TCP
+      - "5140:5140/tcp"
+      # Syslog UDP
+      - "5140:5140/udp"
+      # GELF TCP
+      - "12201:12201/tcp"
+      # GELF UDP
+      - "12201:12201/udp"
+      # Forwarder data
+      - "13301:13301/tcp"
+
+      - "13302:13302/tcp"       # Forwarder config
+    volumes:
+      - graylog_data:/usr/share/graylog/data/data
+      - graylog_journal:/usr/share/graylog/data/journal
+    restart: on-failure
+  
+  talker:
+    build:
+      context: ./talker/
+      dockerfile: Dockerfile
+    environment:
+      GRAYLOG_HOST: "http://127.0.0.1"
+      GRAYLOG_PORT: "5140" 
+    ports:
+      - 9993:3000
+    depends_on:
+      - graylog
+    networks:
+      - graylog
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: always
+  
+networks:
+  graylog:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  graylog_data:
+  graylog_journal:
